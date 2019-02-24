@@ -125,3 +125,57 @@ static int read_from_fd(void* fd, unsigned char* data, int timeout_ms)
 		//usleep(500*1000);
 	return size;
 }
+
+void set_checksum(unsigned char* payload, int size)
+{
+	int sum = 0;
+	//6
+	for(int i=1; i< 1+size-4; i++){
+		sum += payload[i];
+	}
+	int checksum = 0xFFFF - sum;
+	payload[size-3] = (char)((checksum & 0xFF00 )>> 8);
+	payload[size-2] = (char)(checksum & 0x00FF);
+}
+
+bool verify_checksum(unsigned char* payload, int size)
+{
+	int sum = 0;
+	//6
+	for(int i=1; i< 1+size-4; i++){
+		sum += payload[i];
+	}
+	int checksum = ((payload[size-3]  << 8 ) & 0xFF00) | payload[size-2] ;
+	sum += checksum;
+	if (sum == 0xFFFF){
+		return true;
+	}else{
+		return false;
+	}
+}
+
+char fetchCommandType(unsigned char* payload, int size)
+{
+	return payload[1];
+}
+
+int fetchDataLength(unsigned char* payload, int size)
+{
+	int len = ((payload[3]  << 8 ) & 0xFF00) | payload[2] ;
+	return len;
+}
+
+void host_send_enter_communication()
+{
+	unsigned char buffer[300];
+	unsigned char payload[] = {PAYLOAD_START,ENTER_COMMUNICATION, 0,0,0,0, PAYLOAD_STOP};
+	set_checksum(payload, sizeof(payload));
+	communication_host_send(payload, sizeof(payload));
+	int size = communication_host_read_rsp(buffer, 100);
+	if (size){
+		printf("Got %d\n",size);
+	}else{
+		printf("error host_send_enter_communication\n");
+		exit(-1);
+	}
+}
